@@ -12,10 +12,17 @@ contract TestDecentralizedStablecoin is Test {
     address public USER = makeAddr("USER");
     uint256 public constant MINT_BALANCE = 100000;
     uint256 public constant BURN_BALANCE = 5000;
+    string public constant EXPECTED_NAME = "DecentralizedStablecoin";
+    string public constant EXPECTED_SYMBOL = "TDSC";
 
     function setUp() external {
         deployer = new DeployDecentralizedStablecoin();
         decentralizedStablecoin = deployer.run();
+    }
+
+    function testNameAndSymbolShouldBeCorrect() public view {
+        assertEq(decentralizedStablecoin.name() , EXPECTED_NAME);
+        assertEq(decentralizedStablecoin.symbol(), EXPECTED_SYMBOL);
     }
 
     function testMintOnDecentralizedStablecoin() public {
