@@ -21,47 +21,46 @@ contract TestDecentralizedStablecoin is Test {
     }
 
     function testNameAndSymbolShouldBeCorrect() public view {
-        assertEq(decentralizedStablecoin.name() , EXPECTED_NAME);
+        assertEq(decentralizedStablecoin.name(), EXPECTED_NAME);
         assertEq(decentralizedStablecoin.symbol(), EXPECTED_SYMBOL);
     }
 
-    function testMintOnDecentralizedStablecoin() public {
-        vm.prank(DEFAULT_SENDER);
+    function testMintOnDecentralizedStablecoin() public defaultSender {
         decentralizedStablecoin.mint(USER, MINT_BALANCE);
         assertEq(decentralizedStablecoin.balanceOf(USER), MINT_BALANCE);
     }
 
-    function testBurnOnDecentralizedStablecoin() public {
-        vm.prank(DEFAULT_SENDER);
+    function testBurnOnDecentralizedStablecoin() public defaultSender {
         decentralizedStablecoin.mint(DEFAULT_SENDER, MINT_BALANCE);
         vm.prank(DEFAULT_SENDER);
         decentralizedStablecoin.burn(BURN_BALANCE);
         assertEq(decentralizedStablecoin.balanceOf(DEFAULT_SENDER), MINT_BALANCE - BURN_BALANCE);
     }
 
-    function testMintingShouldRevertWithAmountGreaterThanZero() public {
-        vm.prank(DEFAULT_SENDER);
+    function testMintingShouldRevertWithAmountGreaterThanZero() public defaultSender {
         vm.expectRevert(DecentralizedStableCoin.TDSC__AmountMustBeGreaterThanZero.selector);
-        decentralizedStablecoin.mint(DEFAULT_SENDER,0);
+        decentralizedStablecoin.mint(DEFAULT_SENDER, 0);
     }
 
-    function testMintShouldRevertWithZeroAddress() public {
-        vm.prank(DEFAULT_SENDER);
+    function testMintShouldRevertWithZeroAddress() public defaultSender {
         vm.expectRevert(DecentralizedStableCoin.TDSC__NotZeroAddress.selector);
         decentralizedStablecoin.mint(address(0), MINT_BALANCE);
     }
 
-    function testBurnShouldRevertWithAmountGreaterThanZero() public {
-        vm.prank(DEFAULT_SENDER);
+    function testBurnShouldRevertWithAmountGreaterThanZero() public defaultSender {
         vm.expectRevert(DecentralizedStableCoin.TDSC__AmountMustBeGreaterThanZero.selector);
         decentralizedStablecoin.burn(0);
     }
 
-    function testBurnShouldRevertWithAmountExceedsBalance() public {
-        vm.prank(DEFAULT_SENDER);
+    function testBurnShouldRevertWithAmountExceedsBalance() public defaultSender {
         decentralizedStablecoin.mint(DEFAULT_SENDER, BURN_BALANCE);
         vm.prank(DEFAULT_SENDER);
         vm.expectRevert(DecentralizedStableCoin.TDSC__BurnAmountExceedsBalance.selector);
         decentralizedStablecoin.burn(MINT_BALANCE);
+    }
+
+    modifier defaultSender() {
+        vm.prank(DEFAULT_SENDER);
+        _;
     }
 }

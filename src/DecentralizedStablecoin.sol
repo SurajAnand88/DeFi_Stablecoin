@@ -37,7 +37,6 @@ import {ERC20, ERC20Burnable} from "../lib/openzepplin-contracts/contracts/token
 import {Ownable} from "../lib/openzepplin-contracts/contracts/access/Ownable.sol";
 
 contract DecentralizedStableCoin is ERC20Burnable, Ownable {
-
     error TDSC__AmountMustBeGreaterThanZero();
     error TDSC__BurnAmountExceedsBalance();
     error TDSC__NotZeroAddress();
