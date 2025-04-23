@@ -36,24 +36,25 @@ pragma solidity 0.8.18;
 import {ERC20, ERC20Burnable} from "../lib/openzepplin-contracts/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {Ownable} from "../lib/openzepplin-contracts/contracts/access/Ownable.sol";
 
-error TDSC_AmountMustBeGreaterThanZero();
-error TDSC_BurnAmountExceedsBalance();
-error TDSC_NotZeroAddress();
-
 contract DecentralizedStableCoin is ERC20Burnable, Ownable {
+
+    error TDSC__AmountMustBeGreaterThanZero();
+    error TDSC__BurnAmountExceedsBalance();
+    error TDSC__NotZeroAddress();
+
     constructor() ERC20("DecentralizedStablecoin", "TDSC") {}
 
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
-        if (_amount <= 0) revert TDSC_AmountMustBeGreaterThanZero();
-        if (balance < _amount) revert TDSC_BurnAmountExceedsBalance();
+        if (_amount <= 0) revert TDSC__AmountMustBeGreaterThanZero();
+        if (balance < _amount) revert TDSC__BurnAmountExceedsBalance();
 
         super.burn(_amount);
     }
 
     function mint(address _to, uint256 _amount) external onlyOwner returns (bool) {
-        if (_to == address(0)) revert TDSC_NotZeroAddress();
-        if (_amount <= 0) revert TDSC_AmountMustBeGreaterThanZero();
+        if (_to == address(0)) revert TDSC__NotZeroAddress();
+        if (_amount <= 0) revert TDSC__AmountMustBeGreaterThanZero();
 
         _mint(_to, _amount);
         return true;

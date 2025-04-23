@@ -13,14 +13,14 @@ contract TestDecentralizedStablecoin is Test {
     uint256 public constant MINT_BALANCE = 100000;
     uint256 public constant BURN_BALANCE = 5000;
 
-    function setUp() public {
+    function setUp() external {
         deployer = new DeployDecentralizedStablecoin();
         decentralizedStablecoin = deployer.run();
     }
 
     function testMintOnDecentralizedStablecoin() public {
         vm.prank(DEFAULT_SENDER);
-        decentralizedStablecoin.mint(USER,MINT_BALANCE);
+        decentralizedStablecoin.mint(USER, MINT_BALANCE);
         assertEq(decentralizedStablecoin.balanceOf(USER), MINT_BALANCE);
     }
 
@@ -29,9 +29,32 @@ contract TestDecentralizedStablecoin is Test {
         decentralizedStablecoin.mint(DEFAULT_SENDER, MINT_BALANCE);
         vm.prank(DEFAULT_SENDER);
         decentralizedStablecoin.burn(BURN_BALANCE);
-        assertEq(decentralizedStablecoin.balanceOf(DEFAULT_SENDER), MINT_BALANCE-BURN_BALANCE);
+        assertEq(decentralizedStablecoin.balanceOf(DEFAULT_SENDER), MINT_BALANCE - BURN_BALANCE);
     }
 
+    function testMintingShouldRevertWithAmountGreaterThanZero() public {
+        vm.prank(DEFAULT_SENDER);
+        vm.expectRevert(DecentralizedStableCoin.TDSC__AmountMustBeGreaterThanZero.selector);
+        decentralizedStablecoin.mint(DEFAULT_SENDER,0);
+    }
 
+    function testMintShouldRevertWithZeroAddress() public {
+        vm.prank(DEFAULT_SENDER);
+        vm.expectRevert(DecentralizedStableCoin.TDSC__NotZeroAddress.selector);
+        decentralizedStablecoin.mint(address(0), MINT_BALANCE);
+    }
 
+    function testBurnShouldRevertWithAmountGreaterThanZero() public {
+        vm.prank(DEFAULT_SENDER);
+        vm.expectRevert(DecentralizedStableCoin.TDSC__AmountMustBeGreaterThanZero.selector);
+        decentralizedStablecoin.burn(0);
+    }
+
+    function testBurnShouldRevertWithAmountExceedsBalance() public {
+        vm.prank(DEFAULT_SENDER);
+        decentralizedStablecoin.mint(DEFAULT_SENDER, BURN_BALANCE);
+        vm.prank(DEFAULT_SENDER);
+        vm.expectRevert(DecentralizedStableCoin.TDSC__BurnAmountExceedsBalance.selector);
+        decentralizedStablecoin.burn(MINT_BALANCE);
+    }
 }
