@@ -45,14 +45,16 @@
 pragma solidity 0.8.18;
 
 import {DecentralizedStableCoin} from "src/DecentralizedStablecoin.sol";
+import {ReentrancyGuard} from "../lib/openzepplin-contracts/contracts/security/ReentrancyGuard.sol";
 
-contract TDSCEngine {
+contract TDSCEngine is ReentrancyGuard {
     /*═══════════════════════════════════════
                 Errors
 ═══════════════════════════════════════*/
 
     error TDSCEngine__AmountMustBeGreaterThanZero();
     error TDSCEngine__TokenAndPriceFeedArrayLengthMustBeEqual();
+    error TDSC__TokenNotAllowed();
 
     /*═══════════════════════════════════════
                 State Variables
@@ -70,9 +72,11 @@ contract TDSCEngine {
         _;
     }
 
-    // modifier isAllowedToken(address tokeAddress) {
-
-    // }
+    modifier isAllowedToken(address tokenAddress) {
+        if (s_priceFeeds[tokenAddress] == address(0))
+            revert TDSC__TokenNotAllowed();
+        _;
+    }
 
     /*═══════════════════════════════════════ 
                 Functions
@@ -111,7 +115,12 @@ contract TDSCEngine {
     function depositeCollateral(
         address tokenCollateralAddress,
         uint256 amountCollateral
-    ) external moreThanZero(amountCollateral) {}
+    )
+        external
+        moreThanZero(amountCollateral)
+        isAllowedToken(tokenCollateralAddress)
+        nonReentrant
+    {}
 
     function redeemCollateralForTDSC() external {}
 
