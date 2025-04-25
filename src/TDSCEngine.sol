@@ -48,7 +48,8 @@ pragma solidity 0.8.18;
 import {DecentralizedStableCoin} from "src/DecentralizedStablecoin.sol";
 import {ReentrancyGuard} from "../lib/openzepplin-contracts/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "../lib/openzepplin-contracts/contracts/token/ERC20/IERC20.sol";
-import {AggregatorV3Interface} from "../lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from
+    "../lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract TDSCEngine is ReentrancyGuard {
     /*═══════════════════════════════════════
@@ -59,11 +60,16 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine__TokenAndPriceFeedArrayLengthMustBeEqual();
     error TDSCEngine__TokenNotAllowed();
     error TDSCEngine_CollateralTransferFailed();
+    error TDSCEngine__BreaksHealthFactor(uint256 healthFactor);
     /*═══════════════════════════════════════
                 State Variables
     ═══════════════════════════════════════*/
+
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
+    uint256 private constant LIQUIDATION_THRESHOLD = 50;
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1;
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 collateral)) private s_usersCollateralDeposit;
     mapping(address user => uint256 tdsc) private s_UsersTDSCBalance;
@@ -171,16 +177,19 @@ contract TDSCEngine is ReentrancyGuard {
      * Check the ratio  of collateral to TDSC minted to get the health factor
      */
 
-    function _healthFactor(address user) private view {
+    function _healthFactor(address user) private view returns (uint256) {
         // Get Total TDSC minted
         // Get total Collaterla depostied in USD
         (uint256 totalTDSCMinted, uint256 totalCollaterlaValueInUSD) = _getAccountInformation(user);
+        uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
     }
 
     function _revertHealthFactor(address user) internal view {
         // Check health factor (Do user have enough collateral)
         // Revert if thery don't
-        _healthFactor(user);
+        uint256 healthFactor = _healthFactor(user);
+        if (healthFactor < MIN_HEALTH_FACTOR) revert TDSCEngine__BreaksHealthFactor(healthFactor);
     }
 
     /*═══════════════════════════════════════ 
@@ -192,17 +201,17 @@ contract TDSCEngine is ReentrancyGuard {
      * @return totalCollaterlAmountInUSD deposited by user
      */
     function getUserCollaterAmountInUSD(address user) public view returns (uint256 totalCollaterlAmountInUSD) {
-        for(uint256 i=0;i<s_collateralTokens.length;i++){
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
-            uint256 amount  = s_usersCollateralDeposit[user][token];
-            totalCollaterlAmountInUSD += getUSDValue(token,amount);
+            uint256 amount = s_usersCollateralDeposit[user][token];
+            totalCollaterlAmountInUSD += getUSDValue(token, amount);
         }
     }
 
-    function getUSDValue(address token, uint256 amount) public view returns (uint256){
+    function getUSDValue(address token, uint256 amount) public view returns (uint256) {
         //get the price feed
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (,int256 price,,,) = priceFeed.latestRoundData();
-        return ((uint256(price)*ADDITIONAL_FEED_PRECISION) * amount)/PRECISION;
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
 }
