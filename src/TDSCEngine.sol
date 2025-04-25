@@ -61,6 +61,7 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine__TokenNotAllowed();
     error TDSCEngine_CollateralTransferFailed();
     error TDSCEngine__BreaksHealthFactor(uint256 healthFactor);
+    error TDSCEngine__MintFailed();
     /*═══════════════════════════════════════
                 State Variables
     ═══════════════════════════════════════*/
@@ -147,6 +148,10 @@ contract TDSCEngine is ReentrancyGuard {
 
     function mintTDSC(uint256 amountTDSCtoMint) external moreThanZero(amountTDSCtoMint) nonReentrant {
         s_UsersTDSCBalance[msg.sender] += amountTDSCtoMint;
+        _revertHealthFactor(msg.sender);
+
+        bool mintSuccess = i_Tdsc.mint(msg.sender, amountTDSCtoMint);
+        if (!mintSuccess) revert TDSCEngine__MintFailed();
     }
 
     function withdrawCollateralForTDSC() external {}
