@@ -51,7 +51,6 @@ contract HelperConfig is Script {
 
         MockV3Aggregator btcUSDPriceFeed = new MockV3Aggregator(DECIMAL, BTC_USD_PRICE);
         ERC20Mock wBtcMock = new ERC20Mock("WBTC", "WBTC", msg.sender, INITIAL_BALANCE);
-
         vm.stopBroadcast();
 
         return NetworkConfig({
