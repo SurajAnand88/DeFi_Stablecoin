@@ -43,7 +43,7 @@
  * @notice This contract is very loosely based on the MakerDAO DSS (DAI) System.
  *
  */
-pragma solidity 0.8.18;
+pragma solidity ^0.8.18;
 
 import {DecentralizedStableCoin} from "src/DecentralizedStablecoin.sol";
 import {ReentrancyGuard} from "../lib/openzepplin-contracts/contracts/security/ReentrancyGuard.sol";

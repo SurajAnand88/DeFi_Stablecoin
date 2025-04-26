@@ -31,7 +31,7 @@
  * This is the contract is meant to be governed by DSCEngine. This contract is the ERC20 implimentation of our stablecoin system.
  *
  */
-pragma solidity 0.8.18;
+pragma solidity ^0.8.18;
 
 import {ERC20, ERC20Burnable} from "../lib/openzepplin-contracts/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {Ownable} from "../lib/openzepplin-contracts/contracts/access/Ownable.sol";
