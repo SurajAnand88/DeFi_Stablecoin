@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 import {Script} from "forge-std/Script.sol";
 import {MockV3Aggregator} from "../test/mocks/MockV3Aggregator.sol";
 import {ERC20Mock} from "../lib/openzepplin-contracts/contracts/mocks/ERC20Mock.sol";
+import {console} from "forge-std/Console.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
@@ -17,8 +18,8 @@ contract HelperConfig is Script {
     NetworkConfig public activeNetworkConfig;
 
     uint8 private constant DECIMAL = 8;
-    int256 private constant ETH_USD_PRICE = 2000 * 10e8;
-    int256 private constant BTC_USD_PRICE = 20000 * 10e8;
+    int256 private constant ETH_USD_PRICE = 2000 * 1e8;
+    int256 private constant BTC_USD_PRICE = 20000 * 1e8;
     uint256 private constant INITIAL_BALANCE = 100e8;
     uint256 private constant DEFAULT_ANVIL_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
@@ -51,6 +52,7 @@ contract HelperConfig is Script {
 
         MockV3Aggregator btcUSDPriceFeed = new MockV3Aggregator(DECIMAL, BTC_USD_PRICE);
         ERC20Mock wBtcMock = new ERC20Mock("WBTC", "WBTC", msg.sender, INITIAL_BALANCE);
+
         vm.stopBroadcast();
 
         return NetworkConfig({

@@ -10,7 +10,7 @@ contract DeployTDSCEngine is Script {
     address[] public tokenAddresses;
     address[] public priceFeedAddresses;
 
-    function run() external returns (DecentralizedStableCoin, TDSCEngine) {
+    function run() external returns (DecentralizedStableCoin, TDSCEngine, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig();
         (address wETHPriceFeed, address wBTCPriceFeed, address wETH, address wBTC, uint256 deployerKey) =
             helperConfig.activeNetworkConfig();
@@ -20,7 +20,8 @@ contract DeployTDSCEngine is Script {
         DecentralizedStableCoin tdsc = new DecentralizedStableCoin();
         TDSCEngine tdscEngine = new TDSCEngine(tokenAddresses, priceFeedAddresses, address(tdsc));
         vm.stopBroadcast();
+        vm.prank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
         tdsc.transferOwnership(address(tdscEngine));
-        return (tdsc, tdscEngine);
+        return (tdsc, tdscEngine, helperConfig);
     }
 }

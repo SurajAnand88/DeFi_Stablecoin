@@ -116,7 +116,14 @@ contract TDSCEngine is ReentrancyGuard {
         i_Tdsc = DecentralizedStableCoin(TDSCAddress);
     }
 
-    function depositeCollateralAndMintTDSC() external {}
+    function depositeCollateralAndMintTDSC(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountTDSCtoMint
+    ) external {
+        depositeCollateral(tokenCollateralAddress, amountCollateral);
+        mintTDSC(amountTDSCtoMint);
+    }
 
     /*
      *  @notice follow the CEI pattern 
@@ -125,7 +132,7 @@ contract TDSCEngine is ReentrancyGuard {
      */
 
     function depositeCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
+        public
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -146,7 +153,7 @@ contract TDSCEngine is ReentrancyGuard {
      * @param user must have more collateral value than minimun threshold
      */
 
-    function mintTDSC(uint256 amountTDSCtoMint) external moreThanZero(amountTDSCtoMint) nonReentrant {
+    function mintTDSC(uint256 amountTDSCtoMint) public moreThanZero(amountTDSCtoMint) nonReentrant {
         s_UsersTDSCBalance[msg.sender] += amountTDSCtoMint;
         _revertHealthFactor(msg.sender);
 
