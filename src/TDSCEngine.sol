@@ -62,6 +62,7 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine_CollateralTransferFailed();
     error TDSCEngine__BreaksHealthFactor(uint256 healthFactor);
     error TDSCEngine__MintFailed();
+    error TDSCEngine__TransferFailed();
     /*═══════════════════════════════════════
                 State Variables
     ═══════════════════════════════════════*/
@@ -81,6 +82,7 @@ contract TDSCEngine is ReentrancyGuard {
                 Events
     ═══════════════════════════════════════*/
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralRedeemed(address indexed user, uint256 indexed amount, address indexed token);
     /*═══════════════════════════════════════
                 Modifiers
     ═══════════════════════════════════════*/
@@ -116,6 +118,13 @@ contract TDSCEngine is ReentrancyGuard {
         i_Tdsc = DecentralizedStableCoin(TDSCAddress);
     }
 
+    /**
+     *
+     * @param tokenCollateralAddress : The address of the token to deposit as Collateral
+     * @param amountCollateral : The amount of the collateral to deposit
+     * @param amountTDSCtoMint : The amount of the TDSC to mint
+     * @notice This funciton will deposit the collateral and mint TDSC in one transaction
+     */
     function depositeCollateralAndMintTDSC(
         address tokenCollateralAddress,
         uint256 amountCollateral,
@@ -143,9 +152,37 @@ contract TDSCEngine is ReentrancyGuard {
         if (!success) revert TDSCEngine_CollateralTransferFailed();
     }
 
-    function redeemCollateralForTDSC() external {}
+    /**
+     *
+     * @param tokenCollateralAddress : The collateral token address to redeem
+     * @param amountCollateral : The amount of collateral token to redeem
+     * @param amountTDSC : The amount of TDSC to burn
+     * This function burns TDSC and redeem collateral in a single function call
+     */
+    function redeemCollateralForTDSC(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountTDSC)
+        external
+    {
+        burnTDSC(amountTDSC);
+        redeemCollateral(tokenCollateralAddress, amountCollateral);
+    }
 
-    function redeemCollateral() external {}
+    /**
+     *
+     * @param tokenCollateralAddress : The collateral token address to redeem
+     * @param amountCollateral : the amount of collateral token to redeem
+     */
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+        public
+        moreThanZero(amountCollateral)
+        nonReentrant
+    {
+        s_usersCollateralDeposit[msg.sender][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(msg.sender, amountCollateral, tokenCollateralAddress);
+
+        (bool success) = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
+        if (!success) revert TDSCEngine__TransferFailed();
+        _revertHealthFactor(msg.sender);
+    }
 
     /*
      *  @notice follow the CEI pattern 
@@ -163,7 +200,18 @@ contract TDSCEngine is ReentrancyGuard {
 
     function withdrawCollateralForTDSC() external {}
 
-    function burnTDSC() external {}
+    /**
+     *
+     * @param amountTDSC : The amount of TDSC to burn
+     */
+    function burnTDSC(uint256 amountTDSC) public moreThanZero(amountTDSC) nonReentrant {
+        s_UsersTDSCBalance[msg.sender] -= amountTDSC;
+        (bool success) = i_Tdsc.transferFrom(msg.sender, address(this), amountTDSC);
+        if (!success) revert TDSCEngine__TransferFailed();
+
+        i_Tdsc.burn(amountTDSC);
+        _revertHealthFactor(msg.sender);
+    }
 
     function liquidate() external {}
 
