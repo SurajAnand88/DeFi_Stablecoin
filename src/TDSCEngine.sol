@@ -64,6 +64,7 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine__MintFailed();
     error TDSCEngine__TransferFailed();
     error TDSCEngine__HealthFactorIsOK();
+    error TDSCEngine__UserHealthFactorNotImproved();
     /*═══════════════════════════════════════
                 State Variables
     ═══════════════════════════════════════*/
@@ -85,7 +86,7 @@ contract TDSCEngine is ReentrancyGuard {
                 Events
     ═══════════════════════════════════════*/
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event CollateralRedeemed(address indexed user, uint256 indexed amount, address indexed token);
+    event CollateralRedeemed(address indexed from, address indexed to, uint256 amount, address indexed token);
     /*═══════════════════════════════════════
                 Modifiers
     ═══════════════════════════════════════*/
@@ -179,12 +180,8 @@ contract TDSCEngine is ReentrancyGuard {
         moreThanZero(amountCollateral)
         nonReentrant
     {
-        s_usersCollateralDeposit[msg.sender][tokenCollateralAddress] -= amountCollateral;
-        emit CollateralRedeemed(msg.sender, amountCollateral, tokenCollateralAddress);
-
-        (bool success) = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
-        if (!success) revert TDSCEngine__TransferFailed();
-        _revertHealthFactor(msg.sender);
+        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+        _revertIfHealthFactorBroken(msg.sender);
     }
 
     /*
@@ -195,7 +192,7 @@ contract TDSCEngine is ReentrancyGuard {
 
     function mintTDSC(uint256 amountTDSCtoMint) public moreThanZero(amountTDSCtoMint) nonReentrant {
         s_UsersTDSCBalance[msg.sender] += amountTDSCtoMint;
-        _revertHealthFactor(msg.sender);
+        _revertIfHealthFactorBroken(msg.sender);
 
         bool mintSuccess = i_Tdsc.mint(msg.sender, amountTDSCtoMint);
         if (!mintSuccess) revert TDSCEngine__MintFailed();
@@ -208,12 +205,8 @@ contract TDSCEngine is ReentrancyGuard {
      * @param amountTDSC : The amount of TDSC to burn
      */
     function burnTDSC(uint256 amountTDSC) public moreThanZero(amountTDSC) nonReentrant {
-        s_UsersTDSCBalance[msg.sender] -= amountTDSC;
-        (bool success) = i_Tdsc.transferFrom(msg.sender, address(this), amountTDSC);
-        if (!success) revert TDSCEngine__TransferFailed();
-
-        i_Tdsc.burn(amountTDSC);
-        _revertHealthFactor(msg.sender);
+        _burnTDSC(amountTDSC, msg.sender, msg.sender);
+        _revertIfHealthFactorBroken(msg.sender);
     }
 
     /**
@@ -245,13 +238,48 @@ contract TDSCEngine is ReentrancyGuard {
         // s_usersCollateralDeposit[msg.sender][collateral] -= collateralAmount;
         uint256 collateralBonus = (collateralAmount * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
         uint256 totalCollaterlaToRedeem = collateralAmount + collateralBonus;
+        _redeemCollateral(collateral, totalCollaterlaToRedeem, user, msg.sender);
 
-        // (bool success) = IERC20(collateral).transfer(msg.sender, totalCollaterlaToRedeem);
+        // Need to burn TDSC now
+        _burnTDSC(debtToCover, user, msg.sender);
+
+        uint256 endingUserHealthFactor = _healthFactor(user);
+        if (endingUserHealthFactor <= startingHealthFactor) {
+            revert TDSCEngine__UserHealthFactorNotImproved();
+        }
+        _revertIfHealthFactorBroken(msg.sender);
     }
 
     /*═══════════════════════════════════════ 
         Private and Internal Functions
     ═══════════════════════════════════════*/
+
+    /**
+     *
+     * @param amountToBurnTDSC: the amount of TDSC to burn
+     * @param onBehalfOf : The address on behalf of burning the tdsc
+     * @param tdscFrom : who's paying the debt
+     * @dev Low-level internal function , do not call it unless function calling it checking for healthfactor being broken
+     */
+    function _burnTDSC(uint256 amountToBurnTDSC, address onBehalfOf, address tdscFrom) private {
+        s_UsersTDSCBalance[onBehalfOf] -= amountToBurnTDSC;
+        (bool success) = i_Tdsc.transferFrom(tdscFrom, address(this), amountToBurnTDSC);
+        if (!success) revert TDSCEngine__TransferFailed();
+
+        i_Tdsc.burn(amountToBurnTDSC);
+    }
+
+    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
+        private
+    {
+        s_usersCollateralDeposit[from][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(from, to, amountCollateral, tokenCollateralAddress);
+
+        (bool success) = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
+        if (!success) revert TDSCEngine__TransferFailed();
+        _revertIfHealthFactorBroken(msg.sender);
+    }
+
     /**
      *
      * @return totalTDSCMinted by user
@@ -279,7 +307,7 @@ contract TDSCEngine is ReentrancyGuard {
         return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
     }
 
-    function _revertHealthFactor(address user) internal view {
+    function _revertIfHealthFactorBroken(address user) internal view {
         // Check health factor (Do user have enough collateral)
         // Revert if thery don't
         uint256 healthFactor = _healthFactor(user);
