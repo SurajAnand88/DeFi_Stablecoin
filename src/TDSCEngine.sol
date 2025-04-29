@@ -63,6 +63,7 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine__BreaksHealthFactor(uint256 healthFactor);
     error TDSCEngine__MintFailed();
     error TDSCEngine__TransferFailed();
+    error TDSCEngine__HealthFactorIsOK();
     /*═══════════════════════════════════════
                 State Variables
     ═══════════════════════════════════════*/
@@ -71,7 +72,9 @@ contract TDSCEngine is ReentrancyGuard {
     uint256 private constant PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50;
     uint256 private constant LIQUIDATION_PRECISION = 100;
-    uint256 private constant MIN_HEALTH_FACTOR = 1;
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant LIQUIDATION_BONUS = 10; // this means 10% bonus
+
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 collateral)) private s_usersCollateralDeposit;
     mapping(address user => uint256 tdsc) private s_UsersTDSCBalance;
@@ -213,7 +216,38 @@ contract TDSCEngine is ReentrancyGuard {
         _revertHealthFactor(msg.sender);
     }
 
-    function liquidate() external {}
+    /**
+     *
+     * @param collateral : The ERC20 collateral address to liquidate from the user
+     * @param user : The user who has broken the health factor. Their health factor should be
+     * below MIN_HEALTH_FACTOR
+     * @param debtToCover :The amount of TDSC you want to burn to improve the user's health factor
+     * @notice You can partially liquidate user
+     * @notice You will get liquidation bonus for taking the users funds
+     * @notice This function working assumes that the protocol is rougly 200% over collateralized
+     * in order for this to work
+     * @notice A known bug would be if the protocol were 100% or less collateralized ,
+     * the we wouldn't be able to incentive the liquidators.
+     * For example , if the price of the collateral plummed before anyone could be liquidated
+     */
+    function liquidate(address collateral, address user, uint256 debtToCover)
+        external
+        moreThanZero(debtToCover)
+        nonReentrant
+    {
+        // need to check the health factor
+        uint256 startingHealthFactor = _healthFactor(user);
+        if (startingHealthFactor >= MIN_HEALTH_FACTOR) revert TDSCEngine__HealthFactorIsOK();
+
+        uint256 collateralAmount = getTokenAmountFromUSD(collateral, debtToCover);
+        // We are giving the liquidator a 10% bonus
+        //We should impliment a feature to liquidate in the event protocol is insolvent
+        // s_usersCollateralDeposit[msg.sender][collateral] -= collateralAmount;
+        uint256 collateralBonus = (collateralAmount * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
+        uint256 totalCollaterlaToRedeem = collateralAmount + collateralBonus;
+
+        // (bool success) = IERC20(collateral).transfer(msg.sender, totalCollaterlaToRedeem);
+    }
 
     /*═══════════════════════════════════════ 
         Private and Internal Functions
@@ -255,6 +289,13 @@ contract TDSCEngine is ReentrancyGuard {
     /*═══════════════════════════════════════ 
         Public and External view Functions
     ═══════════════════════════════════════*/
+
+    function getTokenAmountFromUSD(address token, uint256 debtUSDAmountInWei) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+
+        return (debtUSDAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+    }
 
     /**
      *
