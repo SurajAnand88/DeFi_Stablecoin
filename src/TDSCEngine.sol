@@ -103,14 +103,6 @@ contract TDSCEngine is ReentrancyGuard {
         _;
     }
 
-    /*═══════════════════════════════════════ 
-                Functions
-    ═══════════════════════════════════════*/
-
-    /*═══════════════════════════════════════ 
-                External Functions
-    ═══════════════════════════════════════*/
-
     constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address TDSCAddress) {
         if (tokenAddresses.length != priceFeedAddresses.length) {
             revert TDSCEngine__TokenAndPriceFeedArrayLengthMustBeEqual();
@@ -121,6 +113,14 @@ contract TDSCEngine is ReentrancyGuard {
         }
         i_Tdsc = DecentralizedStableCoin(TDSCAddress);
     }
+
+    /*═══════════════════════════════════════ 
+                Functions
+    ═══════════════════════════════════════*/
+
+    /*═══════════════════════════════════════ 
+                External Functions
+    ═══════════════════════════════════════*/
 
     /**
      *
@@ -342,5 +342,13 @@ contract TDSCEngine is ReentrancyGuard {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
+
+    // function getUserCollateralBalance(address tokenCollateralAddress) external view returns(uint256){
+    //     return s_usersCollateralDeposit[msg.sender][tokenCollateralAddress];
+    // }
+
+    function getUserAccountInformation() public view returns (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) {
+       (totalTDSCMinted,collaterAmountInUSD) =  _getAccountInformation(msg.sender);
     }
 }
