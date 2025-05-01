@@ -23,7 +23,10 @@ contract TestTDSCEngine is Test {
     uint256 public constant INITIAL_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_ETH_BALANCE = 100 ether;
     uint256 public constant USD_AMOUNT_IN_WEI = 1000e18; //or 1000 ether;
-    uint256 public constant INITTIAL_DEPOSITE_COLLATERAL = 0.5 ether; // or 5e17
+    uint256 public constant INITTIAL_DEPOSITE_COLLATERAL = 1 ether; // or 5e17
+    uint256 public constant INITIAL_TDSC_MINT = 999;
+    uint256 public constant MINTING_TDSC_ABOVE_HEALTHFACTOR = 1001;
+    uint256 public constant EXPECTED_BROKEN_HEALTHFACTOR=0;
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
 
@@ -32,7 +35,6 @@ contract TestTDSCEngine is Test {
         (tdsc, tdscEngine, helperConfig) = deployer.run();
         (wETHPriceFeed, wBTCPriceFeed, wETH, wBTC,) = helperConfig.activeNetworkConfig();
         ERC20Mock(wETH).mint(USER, STARTING_ERC20_ETH_BALANCE);
-        
     }
 
     /*═══════════════════════════════════════ 
@@ -47,7 +49,7 @@ contract TestTDSCEngine is Test {
         new TDSCEngine(token, priceFeeds, address(tdsc));
     }
 
-     /*═══════════════════════════════════════ 
+    /*═══════════════════════════════════════ 
             Test Deposite Collateral 
     ═══════════════════════════════════════*/
 
@@ -57,7 +59,6 @@ contract TestTDSCEngine is Test {
         assertEq(expectedAmountToken, tokenAmount);
     }
 
-
     function testRevertIfCollateralIsZero() public {
         vm.prank(USER);
         ERC20Mock(wETH).approve(address(tdscEngine), INITIAL_COLLATERAL);
@@ -66,19 +67,32 @@ contract TestTDSCEngine is Test {
     }
 
     function testDepositeCollateralRevertIfAddressIsNotAllowed() public {
-        ERC20Mock tokenTest = new ERC20Mock("TEST","TEST",USER,INITIAL_COLLATERAL);
+        ERC20Mock tokenTest = new ERC20Mock("TEST", "TEST", USER, INITIAL_COLLATERAL);
         vm.expectRevert(TDSCEngine.TDSCEngine__TokenNotAllowed.selector);
         tdscEngine.depositeCollateral(address(tokenTest), INITTIAL_DEPOSITE_COLLATERAL);
-
     }
 
-    function testCanDepositeCollateral() public depositeCollaterl {
+    function testCanDepositeCollateral() public depositeCollateral {
         // uint256 userBalance = tdscEngine.getUserCollateralBalance(wETH);
         // assertEq(userBalance,INITTIAL_DEPOSITE_COLLATERAL);
         (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) = tdscEngine.getUserAccountInformation();
-        uint256 expectedCollateralBalance = tdscEngine.getTokenAmountFromUSD(wETH,collaterAmountInUSD);
-        assertEq(expectedCollateralBalance,INITTIAL_DEPOSITE_COLLATERAL);
-        assertEq(totalTDSCMinted,0);
+        uint256 expectedCollateralBalance = tdscEngine.getTokenAmountFromUSD(wETH, collaterAmountInUSD);
+        assertEq(expectedCollateralBalance, INITTIAL_DEPOSITE_COLLATERAL);
+        assertEq(totalTDSCMinted, 0);
+        vm.stopPrank();
+    }
+    /*═══════════════════════════════════════ 
+                Test Mint
+    ═══════════════════════════════════════*/
+    function testMintTDSCRevertIfHealthFactorIsBroken() public depositeCollateral{
+        vm.expectRevert(abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector,EXPECTED_BROKEN_HEALTHFACTOR));
+        tdscEngine.mintTDSC(MINTING_TDSC_ABOVE_HEALTHFACTOR);
+    }
+    
+    function testMintTDSC() public depositeCollateral {
+        tdscEngine.mintTDSC(INITIAL_TDSC_MINT);
+        (uint256 totalTDSCMinted,) = tdscEngine.getUserAccountInformation();
+        assertEq(totalTDSCMinted, INITIAL_TDSC_MINT);
         vm.stopPrank();
     }
     /*═══════════════════════════════════════ 
@@ -92,12 +106,15 @@ contract TestTDSCEngine is Test {
         assertEq(expectedAmount, acutalAmount);
     }
 
-    modifier depositeCollaterl{
+    /*═══════════════════════════════════════ 
+                Modifiers
+    ═══════════════════════════════════════*/
+    modifier depositeCollateral() {
         vm.startPrank(USER);
         ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
         vm.expectEmit(true, true, true, false);
-        emit CollateralDeposited(USER,wETH,INITTIAL_DEPOSITE_COLLATERAL);
-        tdscEngine.depositeCollateral(wETH,INITTIAL_DEPOSITE_COLLATERAL);
+        emit CollateralDeposited(USER, wETH, INITTIAL_DEPOSITE_COLLATERAL);
+        tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL);
         _;
     }
 }

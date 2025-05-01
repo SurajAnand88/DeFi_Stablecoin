@@ -50,6 +50,7 @@ import {ReentrancyGuard} from "../lib/openzepplin-contracts/contracts/security/R
 import {IERC20} from "../lib/openzepplin-contracts/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from
     "../lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {console} from "forge-std/Console.sol";
 
 contract TDSCEngine is ReentrancyGuard {
     /*═══════════════════════════════════════
@@ -73,7 +74,7 @@ contract TDSCEngine is ReentrancyGuard {
     uint256 private constant PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50;
     uint256 private constant LIQUIDATION_PRECISION = 100;
-    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant MIN_HEALTH_FACTOR = 1;
     uint256 private constant LIQUIDATION_BONUS = 10; // this means 10% bonus
 
     mapping(address token => address priceFeed) private s_priceFeeds;
@@ -193,7 +194,6 @@ contract TDSCEngine is ReentrancyGuard {
     function mintTDSC(uint256 amountTDSCtoMint) public moreThanZero(amountTDSCtoMint) nonReentrant {
         s_UsersTDSCBalance[msg.sender] += amountTDSCtoMint;
         _revertIfHealthFactorBroken(msg.sender);
-
         bool mintSuccess = i_Tdsc.mint(msg.sender, amountTDSCtoMint);
         if (!mintSuccess) revert TDSCEngine__MintFailed();
     }
@@ -265,7 +265,6 @@ contract TDSCEngine is ReentrancyGuard {
         s_UsersTDSCBalance[onBehalfOf] -= amountToBurnTDSC;
         (bool success) = i_Tdsc.transferFrom(tdscFrom, address(this), amountToBurnTDSC);
         if (!success) revert TDSCEngine__TransferFailed();
-
         i_Tdsc.burn(amountToBurnTDSC);
     }
 
@@ -274,7 +273,6 @@ contract TDSCEngine is ReentrancyGuard {
     {
         s_usersCollateralDeposit[from][tokenCollateralAddress] -= amountCollateral;
         emit CollateralRedeemed(from, to, amountCollateral, tokenCollateralAddress);
-
         (bool success) = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
         if (!success) revert TDSCEngine__TransferFailed();
         _revertIfHealthFactorBroken(msg.sender);
@@ -302,6 +300,7 @@ contract TDSCEngine is ReentrancyGuard {
     function _healthFactor(address user) private view returns (uint256) {
         // Get Total TDSC minted
         // Get total Collaterla depostied in USD
+
         (uint256 totalTDSCMinted, uint256 totalCollaterlaValueInUSD) = _getAccountInformation(user);
         uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
@@ -311,6 +310,7 @@ contract TDSCEngine is ReentrancyGuard {
         // Check health factor (Do user have enough collateral)
         // Revert if thery don't
         uint256 healthFactor = _healthFactor(user);
+        console.log(healthFactor);
         if (healthFactor < MIN_HEALTH_FACTOR) revert TDSCEngine__BreaksHealthFactor(healthFactor);
     }
 
@@ -344,11 +344,11 @@ contract TDSCEngine is ReentrancyGuard {
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
 
-    // function getUserCollateralBalance(address tokenCollateralAddress) external view returns(uint256){
-    //     return s_usersCollateralDeposit[msg.sender][tokenCollateralAddress];
-    // }
+    function getUserCollateralBalance(address tokenCollateralAddress) external view returns (uint256) {
+        return s_usersCollateralDeposit[msg.sender][tokenCollateralAddress];
+    }
 
     function getUserAccountInformation() public view returns (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) {
-       (totalTDSCMinted,collaterAmountInUSD) =  _getAccountInformation(msg.sender);
+        (totalTDSCMinted, collaterAmountInUSD) = _getAccountInformation(msg.sender);
     }
 }
