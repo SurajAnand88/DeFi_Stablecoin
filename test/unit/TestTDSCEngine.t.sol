@@ -27,7 +27,8 @@ contract TestTDSCEngine is Test {
     uint256 public constant INITTIAL_DEPOSITE_COLLATERAL = 1 ether; // or 5e17
     uint256 public constant REDEEM_COLLATERAL = 0.5 ether; // or 5e17
     uint256 public constant INITIAL_TDSC_MINT = 999;
-    uint256 public constant TDSC_TO_BURN = 499;
+    uint256 public constant TDSC_TO_BURN = 500;
+    uint256 public constant BURN_TDSC_ABOVE_HEALTHFACTOR = 100;
     uint256 public constant MINTING_TDSC_ABOVE_HEALTHFACTOR = 1001;
     uint256 public constant EXPECTED_BROKEN_HEALTHFACTOR = 0;
 
@@ -141,13 +142,22 @@ contract TestTDSCEngine is Test {
         vm.stopPrank();
     }
 
-    function testRedeemCollateralForTDSCRevertsIfHealthFactorIsBroken() public depositeCollateral{
+    function testRedeemCollateralForTDSC() public depositeCollateral{
         tdscEngine.mintTDSC(INITIAL_TDSC_MINT);
-        vm.expectRevert(abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR));
-        tdscEngine.redeemCollateralForTDSC(wETH, INITTIAL_DEPOSITE_COLLATERAL, REDEEM_COLLATERAL);
+        IERC20(tdsc).approve(address(tdscEngine), TDSC_TO_BURN);
+        tdscEngine.redeemCollateralForTDSC(wETH, REDEEM_COLLATERAL, TDSC_TO_BURN);
         vm.stopPrank();
 
     }
+
+    function testReedemCollaterForTDSCRevertsIfHealthFactorIsBroken() public depositeCollateral{
+        tdscEngine.mintTDSC(INITIAL_TDSC_MINT);
+        IERC20(tdsc).approve(address(tdscEngine), BURN_TDSC_ABOVE_HEALTHFACTOR);
+        vm.expectRevert(abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR));
+        tdscEngine.redeemCollateralForTDSC(wETH,REDEEM_COLLATERAL, BURN_TDSC_ABOVE_HEALTHFACTOR);
+        vm.stopPrank();
+    }
+
     /*═══════════════════════════════════════ 
                 Test Burn 
     ═══════════════════════════════════════*/

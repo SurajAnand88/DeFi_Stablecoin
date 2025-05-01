@@ -198,7 +198,7 @@ contract TDSCEngine is ReentrancyGuard {
         if (!mintSuccess) revert TDSCEngine__MintFailed();
     }
 
-    function withdrawCollateralForTDSC() external {}
+    // function withdrawCollateralForTDSC() external {}
 
     /**
      *
@@ -262,6 +262,8 @@ contract TDSCEngine is ReentrancyGuard {
      * @dev Low-level internal function , do not call it unless function calling it checking for healthfactor being broken
      */
     function _burnTDSC(uint256 amountToBurnTDSC, address onBehalfOf, address tdscFrom) private {
+        uint256 balance = s_UsersTDSCBalance[msg.sender];
+        console.log(balance);
         s_UsersTDSCBalance[onBehalfOf] -= amountToBurnTDSC;
         (bool success) = i_Tdsc.transferFrom(tdscFrom, address(this), amountToBurnTDSC);
         if (!success) revert TDSCEngine__TransferFailed();
@@ -303,6 +305,8 @@ contract TDSCEngine is ReentrancyGuard {
         (uint256 totalTDSCMinted, uint256 totalCollaterlaValueInUSD) = _getAccountInformation(user);
         console.log(totalTDSCMinted, totalCollaterlaValueInUSD);
         uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        console.log(totalAdjustedCollateral);
+        console.log((totalAdjustedCollateral/PRECISION)/totalTDSCMinted);
         return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
     }
 
