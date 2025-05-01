@@ -181,7 +181,7 @@ contract TDSCEngine is ReentrancyGuard {
         moreThanZero(amountCollateral)
         nonReentrant
     {
-        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender); // from = should be address(this);
         _revertIfHealthFactorBroken(msg.sender);
     }
 
@@ -272,7 +272,7 @@ contract TDSCEngine is ReentrancyGuard {
         private
     {
         s_usersCollateralDeposit[from][tokenCollateralAddress] -= amountCollateral;
-        emit CollateralRedeemed(from, to, amountCollateral, tokenCollateralAddress);
+        emit CollateralRedeemed(address(this), to, amountCollateral, tokenCollateralAddress);
         (bool success) = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
         if (!success) revert TDSCEngine__TransferFailed();
         _revertIfHealthFactorBroken(msg.sender);
@@ -300,8 +300,8 @@ contract TDSCEngine is ReentrancyGuard {
     function _healthFactor(address user) private view returns (uint256) {
         // Get Total TDSC minted
         // Get total Collaterla depostied in USD
-
         (uint256 totalTDSCMinted, uint256 totalCollaterlaValueInUSD) = _getAccountInformation(user);
+        console.log(totalTDSCMinted, totalCollaterlaValueInUSD);
         uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
     }
@@ -310,7 +310,6 @@ contract TDSCEngine is ReentrancyGuard {
         // Check health factor (Do user have enough collateral)
         // Revert if thery don't
         uint256 healthFactor = _healthFactor(user);
-        console.log(healthFactor);
         if (healthFactor < MIN_HEALTH_FACTOR) revert TDSCEngine__BreaksHealthFactor(healthFactor);
     }
 
