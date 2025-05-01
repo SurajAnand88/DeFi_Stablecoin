@@ -306,7 +306,7 @@ contract TDSCEngine is ReentrancyGuard {
         console.log(totalTDSCMinted, totalCollaterlaValueInUSD);
         uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         console.log(totalAdjustedCollateral);
-        console.log((totalAdjustedCollateral/PRECISION)/totalTDSCMinted);
+        console.log((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
         return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
     }
 
