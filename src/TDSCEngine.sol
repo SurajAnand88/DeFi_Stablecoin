@@ -340,7 +340,7 @@ contract TDSCEngine is ReentrancyGuard {
         }
     }
 
-    function getUSDValue(address token, uint256 amount) public view returns (uint256) {
+    function    getUSDValue(address token, uint256 amount) public view returns (uint256) {
         //get the price feed
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();

@@ -39,6 +39,7 @@ contract TestTDSCEngine is Test {
         (tdsc, tdscEngine, helperConfig) = deployer.run();
         (wETHPriceFeed, wBTCPriceFeed, wETH, wBTC,) = helperConfig.activeNetworkConfig();
         ERC20Mock(wETH).mint(USER, STARTING_ERC20_ETH_BALANCE);
+        ERC20Mock(wBTC).mint(USER, STARTING_ERC20_ETH_BALANCE);
     }
 
     /*═══════════════════════════════════════ 
@@ -96,7 +97,7 @@ contract TestTDSCEngine is Test {
         tdscEngine.mintTDSC(MINTING_TDSC_ABOVE_HEALTHFACTOR);
     }
 
-    function testMintTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+    function testMintTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
         (uint256 totalTDSCMinted,) = tdscEngine.getUserAccountInformation();
         assertEq(totalTDSCMinted, INITIAL_TDSC_MINT);
         vm.stopPrank();
@@ -131,7 +132,7 @@ contract TestTDSCEngine is Test {
         vm.stopPrank();
     }
 
-    function testReedemCollateralRevertIfTDSCNotBurned() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+    function testReedemCollateralRevertIfTDSCNotBurned() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
         vm.expectRevert(
             abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR)
         );
@@ -139,13 +140,17 @@ contract TestTDSCEngine is Test {
         vm.stopPrank();
     }
 
-    function testRedeemCollateralForTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+    function testRedeemCollateralForTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
         IERC20(tdsc).approve(address(tdscEngine), TDSC_TO_BURN);
         tdscEngine.redeemCollateralForTDSC(wETH, REDEEM_COLLATERAL, TDSC_TO_BURN);
         vm.stopPrank();
     }
 
-    function testReedemCollaterForTDSCRevertsIfHealthFactorIsBroken() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+    function testReedemCollaterForTDSCRevertsIfHealthFactorIsBroken()
+        public
+        depositeCollateral
+        mintTDSC(INITIAL_TDSC_MINT)
+    {
         IERC20(tdsc).approve(address(tdscEngine), BURN_TDSC_ABOVE_HEALTHFACTOR);
         vm.expectRevert(
             abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR)
@@ -158,7 +163,7 @@ contract TestTDSCEngine is Test {
                 Test Burn 
     ═══════════════════════════════════════*/
 
-    function testBurnTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+    function testBurnTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
         (uint256 totalTDSCBeforeBurn,) = tdscEngine.getUserAccountInformation();
         IERC20(tdsc).approve(address(tdscEngine), TDSC_TO_BURN);
         tdscEngine.burnTDSC(TDSC_TO_BURN);
@@ -171,11 +176,22 @@ contract TestTDSCEngine is Test {
                 Test Get USD 
     ═══════════════════════════════════════*/
 
+
     function testGetUSDValue() public view {
         uint256 amount = 2e18;
         uint256 expectedAmount = 4000e18;
         uint256 acutalAmount = tdscEngine.getUSDValue(wETH, amount);
         assertEq(expectedAmount, acutalAmount);
+    }
+
+    function testGetUserCollateralBalanceInUSD() public depositeCollateral depositeCollateralBTC {
+        uint256 btcDepositedBalance = tdscEngine.getUSDValue(wBTC,INITTIAL_DEPOSITE_COLLATERAL);
+        uint256 ethDepostedBalance = tdscEngine.getUSDValue(wETH, INITTIAL_DEPOSITE_COLLATERAL);
+        console.log(btcDepositedBalance, ethDepostedBalance);
+
+        uint256 totalUserBalanceInUsd = tdscEngine.getUserCollaterAmountInUSD(USER);
+        assertEq(totalUserBalanceInUsd , (btcDepositedBalance+ethDepostedBalance));
+
     }
 
     /*═══════════════════════════════════════ 
@@ -187,6 +203,13 @@ contract TestTDSCEngine is Test {
         vm.expectEmit(true, true, true, false);
         emit CollateralDeposited(USER, wETH, INITTIAL_DEPOSITE_COLLATERAL);
         tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL);
+        _;
+    }
+
+    modifier depositeCollateralBTC() {
+        vm.startPrank(USER);
+        ERC20Mock(wBTC).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
+        tdscEngine.depositeCollateral(wBTC, INITTIAL_DEPOSITE_COLLATERAL);
         _;
     }
 
