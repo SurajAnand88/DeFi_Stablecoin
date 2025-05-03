@@ -302,6 +302,7 @@ contract TDSCEngine is ReentrancyGuard {
     function _healthFactor(address user) private view returns (uint256) {
         // Get Total TDSC minted
         // Get total Collaterla depostied in USD
+        if (s_UsersTDSCBalance[msg.sender] == 0) return type(uint256).max;
         (uint256 totalTDSCMinted, uint256 totalCollaterlaValueInUSD) = _getAccountInformation(user);
         console.log(totalTDSCMinted, totalCollaterlaValueInUSD);
         uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
@@ -325,7 +326,7 @@ contract TDSCEngine is ReentrancyGuard {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
 
-        return (debtUSDAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+        return ((debtUSDAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION));
     }
 
     /**
@@ -340,7 +341,7 @@ contract TDSCEngine is ReentrancyGuard {
         }
     }
 
-    function    getUSDValue(address token, uint256 amount) public view returns (uint256) {
+    function getUSDValue(address token, uint256 amount) public view returns (uint256) {
         //get the price feed
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
@@ -349,6 +350,10 @@ contract TDSCEngine is ReentrancyGuard {
 
     function getUserCollateralBalance(address tokenCollateralAddress) external view returns (uint256) {
         return s_usersCollateralDeposit[msg.sender][tokenCollateralAddress];
+    }
+
+    function getUserTDSCBalance() external view returns (uint256) {
+        return s_UsersTDSCBalance[msg.sender];
     }
 
     function getUserAccountInformation() public view returns (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) {

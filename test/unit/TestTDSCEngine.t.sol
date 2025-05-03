@@ -121,14 +121,17 @@ contract TestTDSCEngine is Test {
         //minting the tdsc for collateral;
         IERC20(tdsc).approve(address(tdscEngine), TDSC_TO_BURN);
         //buring the tdsc to redeeming the collateral
+        uint256 userPrevTDSCBalance = tdscEngine.getUserTDSCBalance();
         tdscEngine.burnTDSC(TDSC_TO_BURN);
         uint256 userPrevCollateralBalance = tdscEngine.getUserCollateralBalance(wETH);
         uint256 prevBalanceOfDSCEngine = IERC20(wETH).balanceOf(address(tdscEngine));
         tdscEngine.redeemCollateral(wETH, REDEEM_COLLATERAL);
         uint256 userBalanceAfterRedeem = tdscEngine.getUserCollateralBalance(wETH);
+        uint256 userTDSCBalanceAfterRedeem = tdscEngine.getUserTDSCBalance();
         uint256 afterBalanceOfDSCEngine = IERC20(wETH).balanceOf(address(tdscEngine));
         assertEq(userBalanceAfterRedeem, (userPrevCollateralBalance - REDEEM_COLLATERAL));
         assertEq(prevBalanceOfDSCEngine, (afterBalanceOfDSCEngine + REDEEM_COLLATERAL));
+        assertEq(userPrevTDSCBalance, (TDSC_TO_BURN + userTDSCBalanceAfterRedeem));
         vm.stopPrank();
     }
 
@@ -172,10 +175,28 @@ contract TestTDSCEngine is Test {
         vm.stopPrank();
     }
 
+    function testUserAbleToRedeemAllCollateral() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
+        ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
+        tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL);
+        tdscEngine.mintTDSC(INITIAL_TDSC_MINT);
+
+        (uint256 totalTDSCMinted, uint256 totalCollateralAmountInUSD) = tdscEngine.getUserAccountInformation();
+        uint256 totalCollateral = tdscEngine.getTokenAmountFromUSD(wETH, totalCollateralAmountInUSD);
+
+        IERC20(tdsc).approve(address(tdscEngine), totalTDSCMinted);
+        tdscEngine.burnTDSC(totalTDSCMinted);
+        tdscEngine.redeemCollateral(wETH, totalCollateral);
+
+        uint256 userCollateralBalanceAfterRedeem = tdscEngine.getUserCollateralBalance(wETH);
+        uint256 userTDSCBalance = tdscEngine.getUserTDSCBalance();
+        assertEq(userCollateralBalanceAfterRedeem, 0);
+        assertEq(userTDSCBalance, 0);
+
+        vm.stopPrank();
+    }
     /*═══════════════════════════════════════ 
                 Test Get USD 
     ═══════════════════════════════════════*/
-
 
     function testGetUSDValue() public view {
         uint256 amount = 2e18;
@@ -185,13 +206,12 @@ contract TestTDSCEngine is Test {
     }
 
     function testGetUserCollateralBalanceInUSD() public depositeCollateral depositeCollateralBTC {
-        uint256 btcDepositedBalance = tdscEngine.getUSDValue(wBTC,INITTIAL_DEPOSITE_COLLATERAL);
+        uint256 btcDepositedBalance = tdscEngine.getUSDValue(wBTC, INITTIAL_DEPOSITE_COLLATERAL);
         uint256 ethDepostedBalance = tdscEngine.getUSDValue(wETH, INITTIAL_DEPOSITE_COLLATERAL);
         console.log(btcDepositedBalance, ethDepostedBalance);
 
         uint256 totalUserBalanceInUsd = tdscEngine.getUserCollaterAmountInUSD(USER);
-        assertEq(totalUserBalanceInUsd , (btcDepositedBalance+ethDepostedBalance));
-
+        assertEq(totalUserBalanceInUsd, (btcDepositedBalance + ethDepostedBalance));
     }
 
     /*═══════════════════════════════════════ 

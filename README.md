@@ -8,4 +8,4 @@ Stable Features
     1. wETH
     2. wBTC
 
-4. There are no way If the user deposited the collateral and want to withdraw the collateral with minting the TDSC (Decentralized Stable coin). User should be able to withdraw the collateral without minting the TDSC. 
+4. There are no way If the user deposited the collateral and want to withdraw the collateral without minting the TDSC (Decentralized Stable coin). User should be able to withdraw the collateral without minting the TDSC. 
