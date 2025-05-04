@@ -61,7 +61,7 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine__TokenAndPriceFeedArrayLengthMustBeEqual();
     error TDSCEngine__TokenNotAllowed();
     error TDSCEngine_CollateralTransferFailed();
-    error TDSCEngine__BreaksHealthFactor(uint256 healthFactor);
+    error TDSCEngine__BreaksHealthFactor(uint256 healthFactor,address user);
     error TDSCEngine__MintFailed();
     error TDSCEngine__TransferFailed();
     error TDSCEngine__HealthFactorIsOK();
@@ -230,20 +230,21 @@ contract TDSCEngine is ReentrancyGuard {
     {
         // need to check the health factor
         uint256 startingHealthFactor = _healthFactor(user);
+        console.log("Starting HealthFactor",startingHealthFactor);
         if (startingHealthFactor >= MIN_HEALTH_FACTOR) revert TDSCEngine__HealthFactorIsOK();
-
         uint256 collateralAmount = getTokenAmountFromUSD(collateral, debtToCover);
         // We are giving the liquidator a 10% bonus
         //We should impliment a feature to liquidate in the event protocol is insolvent
         // s_usersCollateralDeposit[msg.sender][collateral] -= collateralAmount;
         uint256 collateralBonus = (collateralAmount * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
         uint256 totalCollaterlaToRedeem = collateralAmount + collateralBonus;
-        _redeemCollateral(collateral, totalCollaterlaToRedeem, user, msg.sender);
-
-        // Need to burn TDSC now
         _burnTDSC(debtToCover, user, msg.sender);
+        _redeemCollateral(collateral, totalCollaterlaToRedeem, user, msg.sender);
+        // Need to burn TDSC now
+
 
         uint256 endingUserHealthFactor = _healthFactor(user);
+        console.log("Ending HealthFactor",endingUserHealthFactor);
         if (endingUserHealthFactor <= startingHealthFactor) {
             revert TDSCEngine__UserHealthFactorNotImproved();
         }
@@ -262,17 +263,16 @@ contract TDSCEngine is ReentrancyGuard {
      * @dev Low-level internal function , do not call it unless function calling it checking for healthfactor being broken
      */
     function _burnTDSC(uint256 amountToBurnTDSC, address onBehalfOf, address tdscFrom) private {
-        uint256 balance = s_UsersTDSCBalance[msg.sender];
-        console.log(balance);
         s_UsersTDSCBalance[onBehalfOf] -= amountToBurnTDSC;
         (bool success) = i_Tdsc.transferFrom(tdscFrom, address(this), amountToBurnTDSC);
         if (!success) revert TDSCEngine__TransferFailed();
         i_Tdsc.burn(amountToBurnTDSC);
-    }
+    }   
 
     function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
         private
     {
+        console.log("Amount",amountCollateral);
         s_usersCollateralDeposit[from][tokenCollateralAddress] -= amountCollateral;
         emit CollateralRedeemed(address(this), to, amountCollateral, tokenCollateralAddress);
         (bool success) = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
@@ -285,6 +285,7 @@ contract TDSCEngine is ReentrancyGuard {
      * @return totalTDSCMinted by user
      * @return collaterAmountInUSD deposited by user
      */
+
     function _getAccountInformation(address user)
         private
         view
@@ -293,6 +294,7 @@ contract TDSCEngine is ReentrancyGuard {
         totalTDSCMinted = s_UsersTDSCBalance[user];
         collaterAmountInUSD = getUserCollaterAmountInUSD(user);
     }
+
     /**
      * Returns how close to liquidation a user is
      * If the user is below 1, they can get liquidated
@@ -302,21 +304,22 @@ contract TDSCEngine is ReentrancyGuard {
     function _healthFactor(address user) private view returns (uint256) {
         // Get Total TDSC minted
         // Get total Collaterla depostied in USD
-        if (s_UsersTDSCBalance[msg.sender] == 0) return type(uint256).max;
+        if (s_UsersTDSCBalance[user] == 0) return type(uint256).max;
         (uint256 totalTDSCMinted, uint256 totalCollaterlaValueInUSD) = _getAccountInformation(user);
-        console.log(totalTDSCMinted, totalCollaterlaValueInUSD);
         uint256 totalAdjustedCollateral = (totalCollaterlaValueInUSD * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
-        console.log(totalAdjustedCollateral);
-        console.log((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
-        return ((totalAdjustedCollateral / PRECISION) / totalTDSCMinted);
+        return (totalAdjustedCollateral * PRECISION) / totalTDSCMinted / PRECISION;
     }
+    
+    
 
     function _revertIfHealthFactorBroken(address user) internal view {
         // Check health factor (Do user have enough collateral)
         // Revert if thery don't
         uint256 healthFactor = _healthFactor(user);
-        if (healthFactor < MIN_HEALTH_FACTOR) revert TDSCEngine__BreaksHealthFactor(healthFactor);
+        if (healthFactor < MIN_HEALTH_FACTOR) revert TDSCEngine__BreaksHealthFactor(healthFactor,msg.sender);
     }
+
+
 
     /*═══════════════════════════════════════ 
         Public and External view Functions
@@ -325,9 +328,9 @@ contract TDSCEngine is ReentrancyGuard {
     function getTokenAmountFromUSD(address token, uint256 debtUSDAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-
         return ((debtUSDAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION));
     }
+
 
     /**
      *
@@ -345,7 +348,7 @@ contract TDSCEngine is ReentrancyGuard {
         //get the price feed
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-        return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
+        return (((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION);
     }
 
     function getUserCollateralBalance(address tokenCollateralAddress) external view returns (uint256) {
@@ -356,7 +359,7 @@ contract TDSCEngine is ReentrancyGuard {
         return s_UsersTDSCBalance[msg.sender];
     }
 
-    function getUserAccountInformation() public view returns (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) {
-        (totalTDSCMinted, collaterAmountInUSD) = _getAccountInformation(msg.sender);
+    function getUserAccountInformation(address user) public view returns (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) {
+        (totalTDSCMinted, collaterAmountInUSD) = _getAccountInformation(user);
     }
 }

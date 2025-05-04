@@ -9,6 +9,7 @@ import {DecentralizedStableCoin} from "src/DecentralizedStablecoin.sol";
 import {console} from "forge-std/Console.sol";
 import {ERC20Mock} from "../../lib/openzepplin-contracts/contracts/mocks/ERC20Mock.sol";
 import {IERC20} from "../../lib/openzepplin-contracts/contracts/token/ERC20/IERC20.sol";
+import {MockV3Aggregator} from  "../mocks/MockV3Aggregator.sol";
 
 contract TestTDSCEngine is Test {
     DeployTDSCEngine deployer;
@@ -20,17 +21,24 @@ contract TestTDSCEngine is Test {
     address wETH;
     address wBTC;
 
+
     address public USER = makeAddr("User");
+    address public LIQUIDATION_USER = makeAddr("liquidationUser");
     uint256 public constant INITIAL_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_ETH_BALANCE = 100 ether;
     uint256 public constant USD_AMOUNT_IN_WEI = 1000e18; //or 1000 ether;
     uint256 public constant INITTIAL_DEPOSITE_COLLATERAL = 1 ether; // or 5e17
+    uint256 public constant INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER = 10 ether; // or 5e17
     uint256 public constant REDEEM_COLLATERAL = 0.5 ether; // or 5e17
-    uint256 public constant INITIAL_TDSC_MINT = 999;
-    uint256 public constant TDSC_TO_BURN = 500;
+    uint256 public constant INITIAL_TDSC_MINT = 999e18;
+    uint256 public constant TDSC_TO_BURN = 500e18;
     uint256 public constant BURN_TDSC_ABOVE_HEALTHFACTOR = 100;
-    uint256 public constant MINTING_TDSC_ABOVE_HEALTHFACTOR = 1001;
+    uint256 public constant MINTING_TDSC_ABOVE_HEALTHFACTOR = 1001e18;
     uint256 public constant EXPECTED_BROKEN_HEALTHFACTOR = 0;
+    int256 public constant UPDATED_ETHUSD_PRICEFEED = 1500 * 1e8;
+    uint256 public constant DEBT_TDSC_TO_COVER = 554e18;
+
+
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
 
@@ -39,7 +47,9 @@ contract TestTDSCEngine is Test {
         (tdsc, tdscEngine, helperConfig) = deployer.run();
         (wETHPriceFeed, wBTCPriceFeed, wETH, wBTC,) = helperConfig.activeNetworkConfig();
         ERC20Mock(wETH).mint(USER, STARTING_ERC20_ETH_BALANCE);
-        ERC20Mock(wBTC).mint(USER, STARTING_ERC20_ETH_BALANCE);
+        ERC20Mock(wETH).mint(LIQUIDATION_USER, STARTING_ERC20_ETH_BALANCE);
+        ERC20Mock(wBTC).mint(USER, STARTING_ERC20_ETH_BALANCE);     
+
     }
 
     /*═══════════════════════════════════════ 
@@ -80,7 +90,7 @@ contract TestTDSCEngine is Test {
     function testCanDepositeCollateral() public depositeCollateral {
         // uint256 userBalance = tdscEngine.getUserCollateralBalance(wETH);
         // assertEq(userBalance,INITTIAL_DEPOSITE_COLLATERAL);
-        (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) = tdscEngine.getUserAccountInformation();
+        (uint256 totalTDSCMinted, uint256 collaterAmountInUSD) = tdscEngine.getUserAccountInformation(USER);
         uint256 expectedCollateralBalance = tdscEngine.getTokenAmountFromUSD(wETH, collaterAmountInUSD);
         assertEq(expectedCollateralBalance, INITTIAL_DEPOSITE_COLLATERAL);
         assertEq(totalTDSCMinted, 0);
@@ -92,13 +102,13 @@ contract TestTDSCEngine is Test {
 
     function testMintTDSCRevertIfHealthFactorIsBroken() public depositeCollateral {
         vm.expectRevert(
-            abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR)
+            abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR,USER)
         );
         tdscEngine.mintTDSC(MINTING_TDSC_ABOVE_HEALTHFACTOR);
     }
 
     function testMintTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
-        (uint256 totalTDSCMinted,) = tdscEngine.getUserAccountInformation();
+        (uint256 totalTDSCMinted,) = tdscEngine.getUserAccountInformation(USER);
         assertEq(totalTDSCMinted, INITIAL_TDSC_MINT);
         vm.stopPrank();
     }
@@ -107,12 +117,14 @@ contract TestTDSCEngine is Test {
         vm.startPrank(USER);
         ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
         tdscEngine.depositeCollateralAndMintTDSC(wETH, INITTIAL_DEPOSITE_COLLATERAL, INITIAL_TDSC_MINT);
-        (uint256 totalTDSCMinted, uint256 totalCollateralAmountInUSD) = tdscEngine.getUserAccountInformation();
+        (uint256 totalTDSCMinted, uint256 totalCollateralAmountInUSD) = tdscEngine.getUserAccountInformation(USER);
         uint256 expectCollateralAmount = tdscEngine.getTokenAmountFromUSD(wETH, totalCollateralAmountInUSD);
         assertEq(expectCollateralAmount, INITTIAL_DEPOSITE_COLLATERAL);
         assertEq(totalTDSCMinted, INITIAL_TDSC_MINT);
         vm.stopPrank();
     }
+
+
     /*═══════════════════════════════════════ 
         vvTest Redeem Collateral
     ═══════════════════════════════════════*/
@@ -137,7 +149,7 @@ contract TestTDSCEngine is Test {
 
     function testReedemCollateralRevertIfTDSCNotBurned() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
         vm.expectRevert(
-            abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR)
+            abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR,USER)
         );
         tdscEngine.redeemCollateral(wETH, REDEEM_COLLATERAL);
         vm.stopPrank();
@@ -156,7 +168,7 @@ contract TestTDSCEngine is Test {
     {
         IERC20(tdsc).approve(address(tdscEngine), BURN_TDSC_ABOVE_HEALTHFACTOR);
         vm.expectRevert(
-            abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR)
+            abi.encodeWithSelector(TDSCEngine.TDSCEngine__BreaksHealthFactor.selector, EXPECTED_BROKEN_HEALTHFACTOR,USER)
         );
         tdscEngine.redeemCollateralForTDSC(wETH, REDEEM_COLLATERAL, BURN_TDSC_ABOVE_HEALTHFACTOR);
         vm.stopPrank();
@@ -167,10 +179,10 @@ contract TestTDSCEngine is Test {
     ═══════════════════════════════════════*/
 
     function testBurnTDSC() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
-        (uint256 totalTDSCBeforeBurn,) = tdscEngine.getUserAccountInformation();
+        (uint256 totalTDSCBeforeBurn,) = tdscEngine.getUserAccountInformation(USER);
         IERC20(tdsc).approve(address(tdscEngine), TDSC_TO_BURN);
         tdscEngine.burnTDSC(TDSC_TO_BURN);
-        (uint256 totalTDSCAfterBurn,) = tdscEngine.getUserAccountInformation();
+        (uint256 totalTDSCAfterBurn,) = tdscEngine.getUserAccountInformation(USER);
         assertEq(totalTDSCBeforeBurn, (totalTDSCAfterBurn + TDSC_TO_BURN));
         vm.stopPrank();
     }
@@ -180,7 +192,7 @@ contract TestTDSCEngine is Test {
         tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL);
         tdscEngine.mintTDSC(INITIAL_TDSC_MINT);
 
-        (uint256 totalTDSCMinted, uint256 totalCollateralAmountInUSD) = tdscEngine.getUserAccountInformation();
+        (uint256 totalTDSCMinted, uint256 totalCollateralAmountInUSD) = tdscEngine.getUserAccountInformation(USER);
         uint256 totalCollateral = tdscEngine.getTokenAmountFromUSD(wETH, totalCollateralAmountInUSD);
 
         IERC20(tdsc).approve(address(tdscEngine), totalTDSCMinted);
@@ -215,15 +227,46 @@ contract TestTDSCEngine is Test {
     }
 
     /*═══════════════════════════════════════ 
+                test liquidation 
+    ═══════════════════════════════════════*/
+
+
+    function testLiquidation() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+        (uint256 userPretdsc,) = tdscEngine.getUserAccountInformation(USER);
+        MockV3Aggregator(wETHPriceFeed).updateAnswer(UPDATED_ETHUSD_PRICEFEED);
+        vm.stopPrank();
+        vm.startPrank(LIQUIDATION_USER);
+        IERC20(tdsc).approve(address(tdscEngine),DEBT_TDSC_TO_COVER);
+        tdscEngine.liquidate(wETH, USER, DEBT_TDSC_TO_COVER);
+        vm.stopPrank();
+        (uint256 totalTdsc,uint256 userCollaterBalInUSD) = tdscEngine.getUserAccountInformation(USER);
+        uint256 userCollaterAfterLiqudation = tdscEngine.getTokenAmountFromUSD(wETH,userCollaterBalInUSD);
+        vm.prank(USER);
+        uint256 userEthBal = tdscEngine.getUserCollateralBalance(wETH);
+        assertEq(userCollaterAfterLiqudation, userEthBal);
+        assertEq(totalTdsc,(userPretdsc-DEBT_TDSC_TO_COVER));
+    }
+
+
+    /*═══════════════════════════════════════ 
                 Modifiers
     ═══════════════════════════════════════*/
     modifier depositeCollateral() {
+        depositeCollateraltoLiquidationUser();
         vm.startPrank(USER);
         ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
         vm.expectEmit(true, true, true, false);
         emit CollateralDeposited(USER, wETH, INITTIAL_DEPOSITE_COLLATERAL);
         tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL);
         _;
+    }
+
+    function depositeCollateraltoLiquidationUser() public  {
+        vm.startPrank(LIQUIDATION_USER);
+        ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER);
+        tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER);
+        tdscEngine.mintTDSC(INITIAL_TDSC_MINT);
+        vm.stopPrank();
     }
 
     modifier depositeCollateralBTC() {
