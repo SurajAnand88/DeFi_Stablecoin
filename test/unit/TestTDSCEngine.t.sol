@@ -246,6 +246,17 @@ contract TestTDSCEngine is Test {
         assertEq(userCollaterAfterLiqudation, userEthBal);
         assertEq(totalTdsc,(userPretdsc-DEBT_TDSC_TO_COVER));
     }
+    
+    function testLiquidationRevertsIfUsersHealthFactorIsOK() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT){
+        vm.stopPrank();
+        vm.startPrank(LIQUIDATION_USER);
+        IERC20(tdsc).approve(address(tdscEngine),DEBT_TDSC_TO_COVER);
+        vm.expectRevert(TDSCEngine.TDSCEngine__HealthFactorIsOK.selector);
+        tdscEngine.liquidate(wETH, USER, DEBT_TDSC_TO_COVER);
+        vm.stopPrank();
+    }
+
+
 
 
     /*═══════════════════════════════════════ 

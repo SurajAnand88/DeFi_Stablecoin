@@ -230,7 +230,6 @@ contract TDSCEngine is ReentrancyGuard {
     {
         // need to check the health factor
         uint256 startingHealthFactor = _healthFactor(user);
-        console.log("Starting HealthFactor",startingHealthFactor);
         if (startingHealthFactor >= MIN_HEALTH_FACTOR) revert TDSCEngine__HealthFactorIsOK();
         uint256 collateralAmount = getTokenAmountFromUSD(collateral, debtToCover);
         // We are giving the liquidator a 10% bonus
