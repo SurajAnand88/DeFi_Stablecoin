@@ -237,9 +237,12 @@ contract TDSCEngine is ReentrancyGuard {
         // s_usersCollateralDeposit[msg.sender][collateral] -= collateralAmount;
         uint256 collateralBonus = (collateralAmount * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
         uint256 totalCollaterlaToRedeem = collateralAmount + collateralBonus;
-        _burnTDSC(debtToCover, user, msg.sender);
         _redeemCollateral(collateral, totalCollaterlaToRedeem, user, msg.sender);
         // Need to burn TDSC now
+        _burnTDSC(debtToCover, user, msg.sender);
+        i_Tdsc.transferFrom(user,address(this),debtToCover);
+        i_Tdsc.burn(debtToCover);
+        s_UsersTDSCBalance[msg.sender]-=debtToCover;
 
         uint256 endingUserHealthFactor = _healthFactor(user);
         console.log("Ending HealthFactor", endingUserHealthFactor);
@@ -357,4 +360,6 @@ contract TDSCEngine is ReentrancyGuard {
     {
         (totalTDSCMinted, collaterAmountInUSD) = _getAccountInformation(user);
     }
+
+    
 }

@@ -9,3 +9,5 @@ Stable Features
     2. wBTC
 
 4. There are no way If the user deposited the collateral and want to withdraw the collateral without minting the TDSC (Decentralized Stable coin). User should be able to withdraw the collateral without minting the TDSC. 
+
+5. After liquidation we are not reducing the TDSC from user's wallet on chain, we are just updating the TDSC balance in our state variable and we are reducing the TDSC balance from Liquidation user's wallet on chain but not updating our state variable.
