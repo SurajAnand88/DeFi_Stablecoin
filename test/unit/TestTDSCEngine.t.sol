@@ -115,7 +115,7 @@ contract TestTDSCEngine is Test {
     function testDepositeCollaterlaAndMintTDSC() public {
         vm.startPrank(USER);
         ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
-        tdscEngine.depositeCollateralAndMintTDSC(wETH, INITTIAL_DEPOSITE_COLLATERAL, INITIAL_TDSC_MINT);
+        tdscEngine.collateralDepositeAndMintTDSC(wETH, INITTIAL_DEPOSITE_COLLATERAL, INITIAL_TDSC_MINT);
         (uint256 totalTDSCMinted, uint256 totalCollateralAmountInUSD) = tdscEngine.getUserAccountInformation(USER);
         uint256 expectCollateralAmount = tdscEngine.getTokenAmountFromUSD(wETH, totalCollateralAmountInUSD);
         assertEq(expectCollateralAmount, INITTIAL_DEPOSITE_COLLATERAL);
@@ -205,7 +205,6 @@ contract TestTDSCEngine is Test {
         uint256 userTDSCBalance = tdscEngine.getUserTDSCBalance();
         assertEq(userCollateralBalanceAfterRedeem, 0);
         assertEq(userTDSCBalance, 0);
-
         vm.stopPrank();
     }
     /*═══════════════════════════════════════ 
@@ -235,7 +234,7 @@ contract TestTDSCEngine is Test {
     function testLiquidation() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
         (uint256 userPretdsc,) = tdscEngine.getUserAccountInformation(USER);
         MockV3Aggregator(wETHPriceFeed).updateAnswer(UPDATED_ETHUSD_PRICEFEED);
-        IERC20(tdsc).approve(address(tdscEngine),DEBT_TDSC_TO_COVER);
+        IERC20(tdsc).approve(address(tdscEngine), DEBT_TDSC_TO_COVER);
         vm.stopPrank();
         vm.startPrank(LIQUIDATION_USER);
         IERC20(tdsc).approve(address(tdscEngine), DEBT_TDSC_TO_COVER);
@@ -247,17 +246,6 @@ contract TestTDSCEngine is Test {
         uint256 userEthBal = tdscEngine.getUserCollateralBalance(wETH);
         assertEq(userCollaterAfterLiqudation, userEthBal);
         assertEq(totalTdsc, (userPretdsc - DEBT_TDSC_TO_COVER));
-        uint256 userBalance = IERC20(tdsc).balanceOf(USER);
-        uint256 LiqUserBalance = IERC20(tdsc).balanceOf(LIQUIDATION_USER);
-        vm.prank(USER);
-        uint256 userBalance2 = tdscEngine.getUserTDSCBalance();
-        vm.prank(LIQUIDATION_USER);
-        uint256 LBAl2 = tdscEngine.getUserTDSCBalance();
-        console.log(userBalance);
-        console.log(userBalance2);
-        console.log(LiqUserBalance);
-        console.log(LBAl2);
-
     }
 
     function testLiquidationRevertsIfUsersHealthFactorIsOK() public depositeCollateral mintTDSC(INITIAL_TDSC_MINT) {
@@ -268,10 +256,10 @@ contract TestTDSCEngine is Test {
         tdscEngine.liquidate(wETH, USER, DEBT_TDSC_TO_COVER);
         vm.stopPrank();
     }
-
     /*═══════════════════════════════════════ 
                 Modifiers
     ═══════════════════════════════════════*/
+
     modifier depositeCollateral() {
         depositeCollateraltoLiquidationUser();
         vm.startPrank(USER);

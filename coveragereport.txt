@@ -650,7 +650,7 @@ Anchors for Contract "TDSCEngine" (solc 0.8.28, source ID 33):
   - Refers to item: Line (location: source ID 33, lines 133..141, bytes 5866..6141, hits: 1)
 - IC 341 -> Item 139
 - Creation code
-  - Refers to item: Function "depositeCollateralAndMintTDSC" (location: source ID 33, lines 133..141, bytes 5866..6141, hits: 1)
+  - Refers to item: Function "collateralDepositeAndMintTDSC" (location: source ID 33, lines 133..141, bytes 5866..6141, hits: 1)
 - IC 2595 -> Item 140
 - Creation code
   - Refers to item: Line (location: source ID 33, lines 138..139, bytes 6038..6098, hits: 1)

@@ -130,11 +130,11 @@ contract TDSCEngine is ReentrancyGuard {
      * @param amountTDSCtoMint : The amount of the TDSC to mint
      * @notice This funciton will deposit the collateral and mint TDSC in one transaction
      */
-    function depositeCollateralAndMintTDSC(
+    function collateralDepositeAndMintTDSC(
         address tokenCollateralAddress,
         uint256 amountCollateral,
         uint256 amountTDSCtoMint
-    ) external {
+    ) external moreThanZero(amountCollateral) isAllowedToken(tokenCollateralAddress) nonReentrant {
         depositeCollateral(tokenCollateralAddress, amountCollateral);
         mintTDSC(amountTDSCtoMint);
     }
@@ -240,9 +240,9 @@ contract TDSCEngine is ReentrancyGuard {
         _redeemCollateral(collateral, totalCollaterlaToRedeem, user, msg.sender);
         // Need to burn TDSC now
         _burnTDSC(debtToCover, user, msg.sender);
-        i_Tdsc.transferFrom(user,address(this),debtToCover);
+        i_Tdsc.transferFrom(user, address(this), debtToCover);
         i_Tdsc.burn(debtToCover);
-        s_UsersTDSCBalance[msg.sender]-=debtToCover;
+        s_UsersTDSCBalance[msg.sender] -= debtToCover;
 
         uint256 endingUserHealthFactor = _healthFactor(user);
         console.log("Ending HealthFactor", endingUserHealthFactor);
@@ -361,5 +361,7 @@ contract TDSCEngine is ReentrancyGuard {
         (totalTDSCMinted, collaterAmountInUSD) = _getAccountInformation(user);
     }
 
-    
+    function getCollateralTokens() public view returns (address[] memory) {
+        return s_collateralTokens;
+    }
 }
