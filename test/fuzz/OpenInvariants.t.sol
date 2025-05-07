@@ -39,10 +39,6 @@ contract OpenInvariantsTest is StdInvariant, Test {
         //Don't call redeemcollateral unless there is some collateral to redeem
         handler = new Handler(tdsc, tdscEngine);
         targetContract(address(handler));
-
-        // ERC20Mock(wETH).mint(LIQUIDATION_USER, STARTING_ERC20_ETH_BALANCE);
-        // ERC20Mock(wBTC).mint(LIQUIDATION_USER, STARTING_ERC20_ETH_BALANCE);
-        // depositeCollateraltoLiquidationUser();
     }
 
     function invariant_protocolMustHaveMoreValueThanTotalTDSCSupply() public view {
@@ -54,17 +50,8 @@ contract OpenInvariantsTest is StdInvariant, Test {
         uint256 engineEthUSDBalance = tdscEngine.getUSDValue(wETH, engineEthBalance);
         uint256 engineBtcUSDBalance = tdscEngine.getUSDValue(wBTC, engineBtcBalance);
 
-        uint256 totalTDSCMinted = IERC20(tdsc).totalSupply();
+        uint256 totalTDSCMinted = tdsc.totalSupply();
         assert((engineBtcUSDBalance + engineEthUSDBalance) >= totalTDSCMinted);
     }
 
-    // function depositeCollateraltoLiquidationUser() public {
-    //     vm.startPrank(LIQUIDATION_USER);
-    //     ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER);
-    //     tdscEngine.depositeCollateral(wETH, INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER);
-    //     ERC20Mock(wBTC).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER);
-    //     tdscEngine.depositeCollateral(wBTC, INITTIAL_DEPOSITE_COLLATERAL_LIQUIDATION_USER);
-    //     tdscEngine.mintTDSC(INITIAL_TDSC_MINT_LIQUIDATION_USER);
-    //     vm.stopPrank();
-    // }
 }

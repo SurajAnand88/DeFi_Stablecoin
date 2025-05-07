@@ -11,6 +11,7 @@ contract Handler is Test {
     TDSCEngine tdscEngine;
     ERC20Mock wETH;
     ERC20Mock wBTC;
+    uint256 public constant MAX_COLLATERAL = type(uint8).max;
 
     constructor(DecentralizedStableCoin _tdsc, TDSCEngine _tdscEngine) {
         tdscEngine = _tdscEngine;
@@ -23,7 +24,12 @@ contract Handler is Test {
 
     function depositeCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
         ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        amountCollateral = bound(amountCollateral, 1,MAX_COLLATERAL);
+        vm.startPrank(msg.sender);
+        collateral.mint(address(msg.sender), amountCollateral);
+        ERC20Mock(collateral).approve(address(tdscEngine),amountCollateral);
         tdscEngine.depositeCollateral(address(collateral), amountCollateral);
+        vm.stopPrank();
     }
 
     //Helper functions
