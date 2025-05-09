@@ -51,6 +51,11 @@ contract OpenInvariantsTest is StdInvariant, Test {
         uint256 engineBtcUSDBalance = tdscEngine.getUSDValue(wBTC, engineBtcBalance);
 
         uint256 totalTDSCMinted = tdsc.totalSupply();
+        console.log(engineBtcBalance);
+        console.log(engineEthBalance);
+        console.log(totalTDSCMinted);
+        console.log(handler.mintTimesCalled());
         assert((engineBtcUSDBalance + engineEthUSDBalance) >= totalTDSCMinted);
+
     }
 }

@@ -5,6 +5,7 @@ import {DecentralizedStableCoin} from "src/DecentralizedStablecoin.sol";
 import {TDSCEngine} from "src/TDSCEngine.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "../../lib/openzepplin-contracts/contracts/mocks/ERC20Mock.sol";
+import {console} from "forge-std/Console.sol";
 
 contract Handler is Test {
     DecentralizedStableCoin tdsc;
@@ -12,6 +13,8 @@ contract Handler is Test {
     ERC20Mock wETH;
     ERC20Mock wBTC;
     uint256 public constant MAX_COLLATERAL = type(uint8).max;
+    uint256 public mintTimesCalled;
+    address[] public userWithCollateral;
 
     constructor(DecentralizedStableCoin _tdsc, TDSCEngine _tdscEngine) {
         tdscEngine = _tdscEngine;
@@ -30,6 +33,7 @@ contract Handler is Test {
         ERC20Mock(collateral).approve(address(tdscEngine), amountCollateral);
         tdscEngine.depositeCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+        userWithCollateral.push(msg.sender);
     }
 
     function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
@@ -37,11 +41,25 @@ contract Handler is Test {
         vm.startPrank(msg.sender);
         uint256 userCollateralBalance = tdscEngine.getUserCollateralBalance(address(collateral));
         amountCollateral = bound(amountCollateral, 0, userCollateralBalance);
-        if (amountCollateral == 0){
+        if (amountCollateral == 0) {
             return;
         }
         tdscEngine.redeemCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+    }
+
+    function mintTDS(uint256 amountTDSC, uint256 addressSeed) public {
+        if(userWithCollateral.length ==0)return;
+        address sender = userWithCollateral[addressSeed % userWithCollateral.length];
+        (uint256 totalTDSCMinted, uint256 totalCollateralValueInUSD) = tdscEngine.getUserAccountInformation(sender);
+        int256 maxTDSCMint = int256((totalCollateralValueInUSD / 2)) - int256(totalTDSCMinted);
+        if (maxTDSCMint < 0) return;
+        amountTDSC = bound(amountTDSC, 0, uint256(maxTDSCMint));
+        if (amountTDSC == 0) return;
+        vm.startPrank(sender);
+        tdscEngine.mintTDSC(amountTDSC);
+        vm.stopPrank();
+        mintTimesCalled++;
     }
 
     //Helper functions
