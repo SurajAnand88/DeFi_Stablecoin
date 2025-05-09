@@ -24,11 +24,23 @@ contract Handler is Test {
 
     function depositeCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
         ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
-        amountCollateral = bound(amountCollateral, 1,MAX_COLLATERAL);
+        amountCollateral = bound(amountCollateral, 1, MAX_COLLATERAL);
         vm.startPrank(msg.sender);
         collateral.mint(address(msg.sender), amountCollateral);
-        ERC20Mock(collateral).approve(address(tdscEngine),amountCollateral);
+        ERC20Mock(collateral).approve(address(tdscEngine), amountCollateral);
         tdscEngine.depositeCollateral(address(collateral), amountCollateral);
+        vm.stopPrank();
+    }
+
+    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
+        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        vm.startPrank(msg.sender);
+        uint256 userCollateralBalance = tdscEngine.getUserCollateralBalance(address(collateral));
+        amountCollateral = bound(amountCollateral, 0, userCollateralBalance);
+        if (amountCollateral == 0){
+            return;
+        }
+        tdscEngine.redeemCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
     }
 
