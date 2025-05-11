@@ -51,6 +51,7 @@ import {IERC20} from "../lib/openzepplin-contracts/contracts/token/ERC20/IERC20.
 import {AggregatorV3Interface} from
     "../lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {console} from "forge-std/Console.sol";
+import {OracleLib} from "./libraries/OracleLib.sol";
 
 contract TDSCEngine is ReentrancyGuard {
     /*═══════════════════════════════════════
@@ -66,6 +67,9 @@ contract TDSCEngine is ReentrancyGuard {
     error TDSCEngine__TransferFailed();
     error TDSCEngine__HealthFactorIsOK();
     error TDSCEngine__UserHealthFactorNotImproved();
+
+    using OracleLib for AggregatorV3Interface;
+
     /*═══════════════════════════════════════
                 State Variables
     ═══════════════════════════════════════*/
@@ -134,7 +138,7 @@ contract TDSCEngine is ReentrancyGuard {
         address tokenCollateralAddress,
         uint256 amountCollateral,
         uint256 amountTDSCtoMint
-    ) external moreThanZero(amountCollateral) isAllowedToken(tokenCollateralAddress) nonReentrant {
+    ) external {
         depositeCollateral(tokenCollateralAddress, amountCollateral);
         mintTDSC(amountTDSCtoMint);
     }
@@ -273,7 +277,7 @@ contract TDSCEngine is ReentrancyGuard {
     function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
         private
     {
-        console.log("Amount", amountCollateral);
+        // console.log("Amount", amountCollateral);
         s_usersCollateralDeposit[from][tokenCollateralAddress] -= amountCollateral;
         emit CollateralRedeemed(address(this), to, amountCollateral, tokenCollateralAddress);
         (bool success) = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
@@ -322,7 +326,7 @@ contract TDSCEngine is ReentrancyGuard {
 
     function getTokenAmountFromUSD(address token, uint256 debtUSDAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         return ((debtUSDAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION));
     }
 
@@ -341,7 +345,7 @@ contract TDSCEngine is ReentrancyGuard {
     function getUSDValue(address token, uint256 amount) public view returns (uint256) {
         //get the price feed
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         return (((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION);
     }
 
@@ -363,5 +367,9 @@ contract TDSCEngine is ReentrancyGuard {
 
     function getCollateralTokens() public view returns (address[] memory) {
         return s_collateralTokens;
+    }
+
+    function getCollateralTokenPriceFeed(address token) public view returns (address) {
+        return s_priceFeeds[token];
     }
 }

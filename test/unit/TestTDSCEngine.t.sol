@@ -112,7 +112,7 @@ contract TestTDSCEngine is Test {
         vm.stopPrank();
     }
 
-    function testDepositeCollaterlaAndMintTDSC() public {
+    function testcollateralDepositeAndMintTDSC() public {
         vm.startPrank(USER);
         ERC20Mock(wETH).approve(address(tdscEngine), INITTIAL_DEPOSITE_COLLATERAL);
         tdscEngine.collateralDepositeAndMintTDSC(wETH, INITTIAL_DEPOSITE_COLLATERAL, INITIAL_TDSC_MINT);

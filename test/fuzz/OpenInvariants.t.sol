@@ -56,6 +56,9 @@ contract OpenInvariantsTest is StdInvariant, Test {
         console.log(totalTDSCMinted);
         console.log(handler.mintTimesCalled());
         assert((engineBtcUSDBalance + engineEthUSDBalance) >= totalTDSCMinted);
+    }
 
+    function invariant_gettersShouldNotRevert() public view {
+        tdscEngine.getCollateralTokens();
     }
 }

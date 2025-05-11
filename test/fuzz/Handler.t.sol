@@ -6,6 +6,7 @@ import {TDSCEngine} from "src/TDSCEngine.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "../../lib/openzepplin-contracts/contracts/mocks/ERC20Mock.sol";
 import {console} from "forge-std/Console.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     DecentralizedStableCoin tdsc;
@@ -16,6 +17,8 @@ contract Handler is Test {
     uint256 public mintTimesCalled;
     address[] public userWithCollateral;
 
+    MockV3Aggregator public ethUSDPriceFeed;
+
     constructor(DecentralizedStableCoin _tdsc, TDSCEngine _tdscEngine) {
         tdscEngine = _tdscEngine;
         tdsc = _tdsc;
@@ -23,6 +26,7 @@ contract Handler is Test {
         address[] memory collaterlTokens = tdscEngine.getCollateralTokens();
         wETH = ERC20Mock(collaterlTokens[0]);
         wBTC = ERC20Mock(collaterlTokens[1]);
+        ethUSDPriceFeed = MockV3Aggregator(tdscEngine.getCollateralTokenPriceFeed(address(wETH)));
     }
 
     function depositeCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
@@ -49,7 +53,7 @@ contract Handler is Test {
     }
 
     function mintTDS(uint256 amountTDSC, uint256 addressSeed) public {
-        if(userWithCollateral.length ==0)return;
+        if (userWithCollateral.length == 0) return;
         address sender = userWithCollateral[addressSeed % userWithCollateral.length];
         (uint256 totalTDSCMinted, uint256 totalCollateralValueInUSD) = tdscEngine.getUserAccountInformation(sender);
         int256 maxTDSCMint = int256((totalCollateralValueInUSD / 2)) - int256(totalTDSCMinted);
@@ -61,6 +65,12 @@ contract Handler is Test {
         vm.stopPrank();
         mintTimesCalled++;
     }
+
+    // This function breaks our our invariant
+    // function updateCollateralPrice(uint96 newPrice) public {
+    //     int256 updatePrice = int256(uint256(newPrice));
+    //     ethUSDPriceFeed.updateAnswer(updatePrice);
+    // }
 
     //Helper functions
     function _getCollateralFromSeed(uint256 seed) private view returns (ERC20Mock) {
